@@ -1,6 +1,6 @@
-# 🚀 Next.js &amp; shadcn/ui Project Scaffold
+# 🚀 LifeSync.ai – Advanced DNA Testing Platform
 
-This is a modern, production-ready web application scaffold designed to accelerate development with a comprehensive suite of cutting-edge technologies.
+A modern, globally-oriented genetics and health web app built with Next.js and TypeScript. LifeCare.ai offers clinical-grade DNA testing, interactive health journeys, and a dynamic, multi-step “Order Now” experience.
 
 ## ✨ Technology Stack
 
@@ -11,22 +11,22 @@ This scaffold provides a robust foundation built with:
 - **📘 TypeScript 5** - Type-safe JavaScript for a better developer experience
 - **🎨 Tailwind CSS 4** - A utility-first CSS framework for rapid UI development
 
-### 🧩 UI Components &amp; Styling
+### 🧩 UI Components & Styling
 - **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
 - **🎯 Lucide React** - A beautiful and consistent icon library
 - **🌈 Framer Motion** - A production-ready motion library for React
 - **🎨 Next Themes** - Perfect dark mode in two lines of code
 
-### 📋 Forms &amp; Validation
+### 📋 Forms & Validation
 - **🎣 React Hook Form** - Performant forms with easy validation
 - **✅ Zod** - TypeScript-first schema validation
 
-### 🔄 State Management &amp; Data Fetching
+### 🔄 State Management & Data Fetching
 - **🐻 Zustand** - Simple, scalable state management
 - **🔄 TanStack Query** - Powerful data synchronization for React
 - **🌐 Axios** - A promise-based HTTP client
 
-### 🗄️ Database &amp; Backend
+### 🗄️ Database & Backend
 - **🗄️ Prisma** - A next-generation Node.js and TypeScript ORM
 - **🔐 NextAuth.js** - A complete open-source authentication solution
 
@@ -36,7 +36,7 @@ This scaffold provides a robust foundation built with:
 - **📊 Recharts** - A redefined chart library built with React and D3
 - **🖼️ Sharp** - High-performance image processing
 
-### 🌍 Internationalization &amp; Utilities
+### 🌍 Internationalization & Utilities
 - **🌍 Next Intl** - An internationalization library for Next.js
 - **📅 Date-fns** - A modern JavaScript date utility library
 - **🪝 ReactUse** - A collection of essential React hooks for modern development
@@ -82,7 +82,7 @@ src/
 └── lib/                # Utility functions and configurations
 ```
 
-## 🎨 Available Features &amp; Components
+## 🎨 Available Features & Components
 
 This scaffold includes a comprehensive set of modern web development tools:
 
@@ -101,7 +101,7 @@ This scaffold includes a comprehensive set of modern web development tools:
 
 ### 🎨 Interactive Features
 - **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag &amp; Drop**: Modern drag-and-drop functionality with DND Kit
+- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
 - **Theme Switching**: Built-in dark/light mode support
 
 ### 🔐 Backend Integration
@@ -116,6 +116,4 @@ This scaffold includes a comprehensive set of modern web development tools:
 - **Type Safety**: End-to-end TypeScript with Zod validation
 - **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
 
----
 
-Built with ❤️ for the developer community.
