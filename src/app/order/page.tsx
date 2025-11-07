@@ -50,6 +50,15 @@ interface FormData {
   sleepQuality: string;
   dietaryPreferences: string;
   stressLevel: string;
+
+  // Segment 4: Health Questionnaire
+  sleepEnergy: Record<string, string>;
+  cardiovascularHealth: Record<string, string>;
+  metabolicHealth: Record<string, string>;
+  digestiveHealth: Record<string, string>;
+  cancerImmuneHealth: Record<string, string>;
+  neurologicalHealth: Record<string, string>;
+
   consent: boolean;
 }
 
@@ -57,6 +66,7 @@ const segmentTitles = [
   { title: 'Contact & Scheduling', icon: User },
   { title: 'Test Motivation', icon: Heart },
   { title: 'Personal & Lifestyle', icon: Activity },
+  { title: 'Health Questionnaire', icon: Heart },
 ];
 
 function OrderPage() {
@@ -95,6 +105,15 @@ function OrderPage() {
     sleepQuality: '',
     dietaryPreferences: '',
     stressLevel: '',
+    
+    // Segment 4
+    sleepEnergy: {},
+    cardiovascularHealth: {},
+    metabolicHealth: {},
+    digestiveHealth: {},
+    cancerImmuneHealth: {},
+    neurologicalHealth: {},
+    
     consent: false,
   });
 
@@ -118,14 +137,24 @@ function OrderPage() {
       case 2:
         return formData.motivations.length > 0;
       case 3:
-        return !!(formData.age && formData.gender && formData.sampleType && formData.consent);
+        return !!(formData.age && formData.gender && formData.sampleType);
+      case 4:
+        return !!(
+          Object.keys(formData.sleepEnergy).length > 0 &&
+          Object.keys(formData.cardiovascularHealth).length > 0 &&
+          Object.keys(formData.metabolicHealth).length > 0 &&
+          Object.keys(formData.digestiveHealth).length > 0 &&
+          Object.keys(formData.cancerImmuneHealth).length > 0 &&
+          Object.keys(formData.neurologicalHealth).length > 0 &&
+          formData.consent
+        );
       default:
         return false;
     }
   };
 
   const nextSegment = () => {
-    if (validateSegment(currentSegment) && currentSegment < 3) {
+    if (validateSegment(currentSegment) && currentSegment < 4) {
       setCurrentSegment(currentSegment + 1);
     }
   };
@@ -138,7 +167,7 @@ function OrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateSegment(3)) {
+    if (!validateSegment(4)) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields.',
@@ -679,9 +708,289 @@ function OrderPage() {
                         <ChevronLeft className="h-5 w-5 mr-2" />
                         Back
                       </Button>
+                      {currentSegment < 4 ? (
+                        <Button 
+                          type="button"
+                          onClick={nextSegment}
+                          disabled={!validateSegment(currentSegment)}
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-300"
+                        >
+                          Next
+                          <ChevronRight className="h-5 w-5 ml-2" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          type="submit"
+                          disabled={!validateSegment(4) || isSubmitting}
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-300"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader className="h-5 w-5 mr-2 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              Submit Order
+                              <Check className="h-5 w-5 ml-2" />
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Segment 4: Health Questionnaire */}
+              {currentSegment === 4 && (
+                <Card className="overflow-hidden shadow-sm border-gray-200/80">
+                  <CardHeader className="bg-gray-50/80 border-b border-gray-200/80">
+                    <CardTitle className="flex items-center space-x-3 text-xl font-bold text-gray-800">
+                      <Heart className="h-6 w-6 text-red-600" />
+                      <span>Health Questionnaire</span>
+                    </CardTitle>
+                    <p className="text-gray-500 pt-1">Please answer the following health questions. Select from: Always, Often, Sometimes, Occasionally, Never</p>
+                  </CardHeader>
+                  <CardContent className="p-8 space-y-10">
+                    {/* Sleep and Energy */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Sleep and Energy</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'sleep_hours', label: 'Do you sleep less than 6 or more than 9 hours per night consistently?' },
+                          { key: 'wake_gasping', label: 'Do you often wake up gasping for air, choking, or with a dry mouth?' },
+                          { key: 'exhausted', label: 'Do you feel exhausted even after a full night\'s sleep?' },
+                          { key: 'sleep_changes', label: 'Have you noticed sudden changes in your sleep pattern in the past month?' },
+                          { key: 'night_sweats', label: 'Do you experience night sweats or abnormal body temperature during sleep?' },
+                        ].map((question) => (
+                          <div key={question.key} className="p-3 border border-gray-200 rounded-lg">
+                            <Label className="text-gray-700 font-medium">{question.label}</Label>
+                            <RadioGroup 
+                              value={formData.sleepEnergy[question.key] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  sleepEnergy: { ...prev.sleepEnergy, [question.key]: value }
+                                }));
+                              }}
+                              className="mt-2 flex space-x-4"
+                            >
+                              {['Always', 'Often', 'Sometimes', 'Occasionally', 'Never'].map((option) => (
+                                <div key={option} className="flex items-center space-x-1">
+                                  <RadioGroupItem value={option} id={`sleep_${question.key}_${option}`} />
+                                  <Label htmlFor={`sleep_${question.key}_${option}`} className="text-sm font-normal cursor-pointer">{option}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cardiovascular and Circulatory Health */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Cardiovascular and Circulatory Health</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'chest_pain', label: 'Do you frequently feel chest tightness, pain, or pressure, especially during exertion?' },
+                          { key: 'shortness_breath', label: 'Do you experience shortness of breath when walking short distances or climbing stairs?' },
+                          { key: 'swelling', label: 'Have you noticed swelling in your ankles, feet, or hands recently?' },
+                          { key: 'irregular_heartbeat', label: 'Do you experience irregular or rapid heartbeat episodes?' },
+                          { key: 'heart_history', label: 'Do you have a history of high blood pressure, high cholesterol, or diabetes?' },
+                        ].map((question) => (
+                          <div key={question.key} className="p-3 border border-gray-200 rounded-lg">
+                            <Label className="text-gray-700 font-medium">{question.label}</Label>
+                            <RadioGroup 
+                              value={formData.cardiovascularHealth[question.key] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  cardiovascularHealth: { ...prev.cardiovascularHealth, [question.key]: value }
+                                }));
+                              }}
+                              className="mt-2 flex space-x-4"
+                            >
+                              {['Always', 'Often', 'Sometimes', 'Occasionally', 'Never'].map((option) => (
+                                <div key={option} className="flex items-center space-x-1">
+                                  <RadioGroupItem value={option} id={`cardio_${question.key}_${option}`} />
+                                  <Label htmlFor={`cardio_${question.key}_${option}`} className="text-sm font-normal cursor-pointer">{option}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Metabolic and Endocrine Health */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Metabolic and Endocrine Health</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'weight_change', label: 'Have you experienced unexplained weight loss or gain in the past 3 months?' },
+                          { key: 'thirst_urinate', label: 'Do you often feel excessively thirsty or urinate more than normal?' },
+                          { key: 'shaky_dizzy', label: 'Do you frequently feel shaky, dizzy, or fatigued without reason?' },
+                          { key: 'temp_tolerance', label: 'Have you noticed significant changes in body temperature tolerance (cold or heat)?' },
+                          { key: 'skin_hair_nails', label: 'Do you have persistent dry skin, thinning hair, or brittle nails?' },
+                        ].map((question) => (
+                          <div key={question.key} className="p-3 border border-gray-200 rounded-lg">
+                            <Label className="text-gray-700 font-medium">{question.label}</Label>
+                            <RadioGroup 
+                              value={formData.metabolicHealth[question.key] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  metabolicHealth: { ...prev.metabolicHealth, [question.key]: value }
+                                }));
+                              }}
+                              className="mt-2 flex space-x-4"
+                            >
+                              {['Always', 'Often', 'Sometimes', 'Occasionally', 'Never'].map((option) => (
+                                <div key={option} className="flex items-center space-x-1">
+                                  <RadioGroupItem value={option} id={`metabolic_${question.key}_${option}`} />
+                                  <Label htmlFor={`metabolic_${question.key}_${option}`} className="text-sm font-normal cursor-pointer">{option}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Digestive and Abdominal Health */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Digestive and Abdominal Health</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'indigestion', label: 'Have you had persistent indigestion, heartburn, or difficulty swallowing?' },
+                          { key: 'blood_stool', label: 'Have you noticed blood in your stool, dark tar-like stools, or abdominal pain?' },
+                          { key: 'diarrhea_bloating', label: 'Do you have frequent diarrhea, constipation, or unexplained bloating?' },
+                          { key: 'appetite_loss', label: 'Have you recently lost appetite or feel full very quickly after eating?' },
+                          { key: 'nausea_vomiting', label: 'Do you experience chronic nausea or vomiting without identifiable cause?' },
+                        ].map((question) => (
+                          <div key={question.key} className="p-3 border border-gray-200 rounded-lg">
+                            <Label className="text-gray-700 font-medium">{question.label}</Label>
+                            <RadioGroup 
+                              value={formData.digestiveHealth[question.key] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  digestiveHealth: { ...prev.digestiveHealth, [question.key]: value }
+                                }));
+                              }}
+                              className="mt-2 flex space-x-4"
+                            >
+                              {['Always', 'Often', 'Sometimes', 'Occasionally', 'Never'].map((option) => (
+                                <div key={option} className="flex items-center space-x-1">
+                                  <RadioGroupItem value={option} id={`digestive_${question.key}_${option}`} />
+                                  <Label htmlFor={`digestive_${question.key}_${option}`} className="text-sm font-normal cursor-pointer">{option}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cancer and Immune System Indicators */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Cancer and Immune System Indicators</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'lumps_swelling', label: 'Have you found any lumps, swellings, or thickened areas in your body?' },
+                          { key: 'fever_sweats', label: 'Have you experienced unexplained fever, chills, or night sweats lasting weeks?' },
+                          { key: 'bruise_bleed', label: 'Do you bruise or bleed more easily than usual?' },
+                          { key: 'skin_changes', label: 'Have you noticed any non-healing sores, warts, or skin color changes?' },
+                          { key: 'cough_blood', label: 'Have you experienced persistent cough, hoarseness, or blood in sputum?' },
+                        ].map((question) => (
+                          <div key={question.key} className="p-3 border border-gray-200 rounded-lg">
+                            <Label className="text-gray-700 font-medium">{question.label}</Label>
+                            <RadioGroup 
+                              value={formData.cancerImmuneHealth[question.key] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  cancerImmuneHealth: { ...prev.cancerImmuneHealth, [question.key]: value }
+                                }));
+                              }}
+                              className="mt-2 flex space-x-4"
+                            >
+                              {['Always', 'Often', 'Sometimes', 'Occasionally', 'Never'].map((option) => (
+                                <div key={option} className="flex items-center space-x-1">
+                                  <RadioGroupItem value={option} id={`cancer_${question.key}_${option}`} />
+                                  <Label htmlFor={`cancer_${question.key}_${option}`} className="text-sm font-normal cursor-pointer">{option}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Neurological and Musculoskeletal Health */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Neurological and Musculoskeletal Health</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'headaches', label: 'Do you experience frequent headaches, vision changes, or episodes of dizziness?' },
+                          { key: 'numbness_tingling', label: 'Have you felt numbness, tingling, or weakness in your limbs?' },
+                          { key: 'tremors', label: 'Do you have tremors or uncontrolled muscle movements?' },
+                          { key: 'balance_loss', label: 'Have you experienced loss of balance or coordination recently?' },
+                          { key: 'pain_joints', label: 'Do you have persistent pain in joints, bones, or muscles without clear cause?' },
+                        ].map((question) => (
+                          <div key={question.key} className="p-3 border border-gray-200 rounded-lg">
+                            <Label className="text-gray-700 font-medium">{question.label}</Label>
+                            <RadioGroup 
+                              value={formData.neurologicalHealth[question.key] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  neurologicalHealth: { ...prev.neurologicalHealth, [question.key]: value }
+                                }));
+                              }}
+                              className="mt-2 flex space-x-4"
+                            >
+                              {['Always', 'Often', 'Sometimes', 'Occasionally', 'Never'].map((option) => (
+                                <div key={option} className="flex items-center space-x-1">
+                                  <RadioGroupItem value={option} id={`neuro_${question.key}_${option}`} />
+                                  <Label htmlFor={`neuro_${question.key}_${option}`} className="text-sm font-normal cursor-pointer">{option}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Consent */}
+                    <div className="border-t pt-8">
+                      <div className="flex items-start space-x-4 p-4 bg-blue-50/80 border border-blue-200/80 rounded-lg">
+                        <Checkbox
+                          id="consent"
+                          checked={formData.consent}
+                          onCheckedChange={(checked) => updateFormData('consent', checked as boolean)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <Label htmlFor="consent" className="text-base font-medium text-gray-800 cursor-pointer">
+                            I consent to my data being used for analysis and agree to the privacy policy.
+                          </Label>
+                          <p className="text-sm text-gray-600 mt-1">Your health information is confidential and will be used only for personalized analysis.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-6">
+                      <Button type="button" variant="outline" onClick={prevSegment} size="lg">
+                        <ChevronLeft className="h-5 w-5 mr-2" />
+                        Back
+                      </Button>
                       <Button 
                         type="submit"
-                        disabled={!validateSegment(3) || isSubmitting}
+                        disabled={!validateSegment(4) || isSubmitting}
                         size="lg"
                         className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-300"
                       >

@@ -147,6 +147,12 @@ function generateReportPrompt(orderData: any, userName: string): string {
     dietaryPreferences,
     motivations,
     otherMotivation,
+    sleepEnergy,
+    cardiovascularHealth,
+    metabolicHealth,
+    digestiveHealth,
+    cancerImmuneHealth,
+    neurologicalHealth,
   } = orderData;
 
   logReport(`     ✓ Age: ${age}`);
@@ -160,19 +166,101 @@ function generateReportPrompt(orderData: any, userName: string): string {
   logReport(`     ✓ Stress Level: ${stressLevel}`);
   logReport(`     ✓ Dietary Preferences: ${dietaryPreferences}`);
   logReport(`     ✓ Motivations: ${motivations ? motivations.join(', ') : 'None'}`);
+  logReport(`     ✓ Health Questionnaire: ${Object.keys(sleepEnergy || {}).length} sleep, ${Object.keys(cardiovascularHealth || {}).length} cardio questions answered`);
 
-  return `You are a professional health and genomics analyst. Based on the following information from a DNA testing kit order, generate a comprehensive personalized health analysis report. 
+  // Format health questionnaire responses
+  const formatQuestionnaire = (category: string, data: Record<string, string> = {}) => {
+    if (!data || Object.keys(data).length === 0) return '';
+    
+    const questions: Record<string, string> = {
+      sleep_hours: 'Do you sleep less than 6 or more than 9 hours per night consistently?',
+      wake_gasping: 'Do you often wake up gasping for air, choking, or with a dry mouth?',
+      exhausted: 'Do you feel exhausted even after a full night\'s sleep?',
+      sleep_changes: 'Have you noticed sudden changes in your sleep pattern in the past month?',
+      night_sweats: 'Do you experience night sweats or abnormal body temperature during sleep?',
+      
+      chest_pain: 'Do you frequently feel chest tightness, pain, or pressure, especially during exertion?',
+      shortness_breath: 'Do you experience shortness of breath when walking short distances or climbing stairs?',
+      swelling: 'Have you noticed swelling in your ankles, feet, or hands recently?',
+      irregular_heartbeat: 'Do you experience irregular or rapid heartbeat episodes?',
+      heart_history: 'Do you have a history of high blood pressure, high cholesterol, or diabetes?',
+      
+      weight_change: 'Have you experienced unexplained weight loss or gain in the past 3 months?',
+      thirst_urinate: 'Do you often feel excessively thirsty or urinate more than normal?',
+      shaky_dizzy: 'Do you frequently feel shaky, dizzy, or fatigued without reason?',
+      temp_tolerance: 'Have you noticed significant changes in body temperature tolerance (cold or heat)?',
+      skin_hair_nails: 'Do you have persistent dry skin, thinning hair, or brittle nails?',
+      
+      indigestion: 'Have you had persistent indigestion, heartburn, or difficulty swallowing?',
+      blood_stool: 'Have you noticed blood in your stool, dark tar-like stools, or abdominal pain?',
+      diarrhea_bloating: 'Do you have frequent diarrhea, constipation, or unexplained bloating?',
+      appetite_loss: 'Have you recently lost appetite or feel full very quickly after eating?',
+      nausea_vomiting: 'Do you experience chronic nausea or vomiting without identifiable cause?',
+      
+      lumps_swelling: 'Have you found any lumps, swellings, or thickened areas in your body?',
+      fever_sweats: 'Have you experienced unexplained fever, chills, or night sweats lasting weeks?',
+      bruise_bleed: 'Do you bruise or bleed more easily than usual?',
+      skin_changes: 'Have you noticed any non-healing sores, warts, or skin color changes?',
+      cough_blood: 'Have you experienced persistent cough, hoarseness, or blood in sputum?',
+      
+      headaches: 'Do you experience frequent headaches, vision changes, or episodes of dizziness?',
+      numbness_tingling: 'Have you felt numbness, tingling, or weakness in your limbs?',
+      tremors: 'Do you have tremors or uncontrolled muscle movements?',
+      balance_loss: 'Have you experienced loss of balance or coordination recently?',
+      pain_joints: 'Do you have persistent pain in joints, bones, or muscles without clear cause?',
+    };
 
-IMPORTANT: Generate a well-structured report with:
-1. Executive Summary (2-3 paragraphs)
-2. Health Profile Analysis (based on their lifestyle and health data)
-3. Genetic Insights & Recommendations (based on their demographics and health factors)
-4. Lifestyle & Wellness Recommendations (tailored to their profile)
-5. Key Findings & Risk Factors (if any)
-6. Next Steps & Follow-up Recommendations
+    let result = `\n## ${category}:\n`;
+    for (const [key, answer] of Object.entries(data)) {
+      const question = questions[key] || key;
+      result += `- Q: ${question}\n  A: ${answer}\n`;
+    }
+    return result;
+  };
+
+  const healthQuestionnaireSection = `
+## DETAILED HEALTH QUESTIONNAIRE RESPONSES:
+${formatQuestionnaire('Sleep and Energy', sleepEnergy)}
+${formatQuestionnaire('Cardiovascular and Circulatory Health', cardiovascularHealth)}
+${formatQuestionnaire('Metabolic and Endocrine Health', metabolicHealth)}
+${formatQuestionnaire('Digestive and Abdominal Health', digestiveHealth)}
+${formatQuestionnaire('Cancer and Immune System Indicators', cancerImmuneHealth)}
+${formatQuestionnaire('Neurological and Musculoskeletal Health', neurologicalHealth)}
+`;
+
+  return `You are a professional health and wellness analyst. Based on the following comprehensive health assessment, analyze my answers and generate a highly detailed, structured report about my overall health and lifestyle.
+
+INSTRUCTIONS FOR ANALYSIS:
+1. Assess my lifestyle based on the following categories: Sleep & Energy, Cardiovascular Health, Metabolic Health, Digestive Health, Cancer Risk Indicators, and Neurological/Musculoskeletal Health
+
+2. Identify which aspects of my lifestyle may be healthy or unhealthy, citing CONCRETE EVIDENCE from my questionnaire answers and personal health data
+
+3. For EACH major health risk area (e.g., heart disease, diabetes, cancer, sleep disorders, neurological issues), estimate and CLEARLY STATE my risk level with supporting rationale:
+   - LOW RISK: No concerning patterns or symptoms
+   - MODERATE RISK: Some warning signs or lifestyle factors present
+   - HIGH RISK: Multiple concerning indicators requiring attention
+   - URGENT: Red flags requiring prompt medical consultation
+
+4. Provide PERSONALIZED, ACTIONABLE advice for improving any areas of concern:
+   - Sleep hygiene recommendations (specific to my answers)
+   - Healthy eating suggestions (based on my dietary preferences and digestive health)
+   - Physical activity recommendations (considering my current exercise level and cardiovascular status)
+   - Stress management strategies (tailored to my stress level)
+   - Preventive screening recommendations (based on risk factors)
+
+5. Highlight ANY URGENT WARNING SIGNS or 'RED FLAGS' that may require PROMPT MEDICAL CONSULTATION
+
+6. Organize the report in clear sections for each health domain with:
+   - Bullet points for key findings
+   - Concise explanations of why each finding matters
+   - Risk level indicators (LOW/MODERATE/HIGH/URGENT)
+   - Specific actionable steps
+
+7. Ensure the analysis is thorough, nuanced, evidence-based, and user-friendly (NOT generic)
 
 ---
-CUSTOMER INFORMATION:
+
+## PERSONAL HEALTH PROFILE:
 Name: ${userName}
 Age: ${age} years
 Gender: ${gender}
@@ -181,17 +269,17 @@ Weight: ${weight} kg
 Blood Group: ${bloodGroup}
 Ethnicity: ${ethnicity}
 
-HEALTH & LIFESTYLE DATA:
+## LIFESTYLE DATA:
 - Smoking Status: ${smoking}
 - Alcohol Consumption: ${alcohol}
 - Exercise Frequency: ${exercise}
-- Current Medications: ${takingMedications === 'yes' ? medications : 'None'}
-- Allergies: ${hasAllergies === 'yes' ? allergies : 'None'}
+- Current Medications: ${takingMedications === 'yes' ? medications : 'None reported'}
+- Allergies: ${hasAllergies === 'yes' ? allergies : 'None reported'}
 - Sleep Quality: ${sleepQuality}
 - Stress Level: ${stressLevel}
 - Dietary Preferences: ${dietaryPreferences}
 
-TEST MOTIVATION:
+## TEST MOTIVATION:
 ${
   motivations && motivations.length > 0
     ? `Primary reasons for testing: ${motivations.join(', ')}`
@@ -199,18 +287,28 @@ ${
 }
 ${otherMotivation ? `\nAdditional motivation: ${otherMotivation}` : ''}
 
+${healthQuestionnaireSection}
+
 ---
 
-Please generate a professional, actionable health report that:
-1. Acknowledges their health profile
-2. Provides personalized insights based on their age, gender, and lifestyle
-3. Offers evidence-based recommendations for wellness
-4. Highlights areas of concern or opportunity for improvement
-5. Is encouraging and empowering in tone
-6. Includes specific, actionable steps they can take
+## REPORT FORMAT REQUIREMENT:
+Create a comprehensive report with these sections:
 
-Format the report with clear section headings and bullet points where appropriate.`;
+1. **Executive Summary** (2-3 paragraphs synthesizing overall health status)
+2. **Sleep and Energy Assessment** (analysis of sleep patterns, fatigue, energy levels with risk level)
+3. **Cardiovascular and Circulatory Health** (heart health, blood pressure indicators, exercise capacity with risk level)
+4. **Metabolic and Endocrine Health** (weight management, blood sugar indicators, thyroid function signs with risk level)
+5. **Digestive and Abdominal Health** (digestive system status, GI concerns with risk level)
+6. **Cancer Risk Assessment** (immune system markers, warning signs with risk level)
+7. **Neurological and Musculoskeletal Health** (nervous system, brain health, muscle/joint status with risk level)
+8. **Key Recommendations** (prioritized action items based on identified risks)
+9. **Urgent Concerns** (if any red flags requiring immediate medical attention)
+10. **Personalized Wellness Plan** (3-6 month plan with specific, measurable goals)
+
+Use headings, bullet points, and clear formatting. Make it professional yet accessible. Base every recommendation on evidence from the health questionnaire responses provided.
+`;
 }
+
 
 /**
  * Parse the Gemini-generated report into structured sections
