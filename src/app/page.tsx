@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Check, Phone, Mail, MapPin, Star, Users, Shield, Activity, Heart, Dna, Clock, Package, MessageCircle } from 'lucide-react';
 import AuthButton from '@/components/auth-button';
+import { TrackOrderNav } from '@/components/track-order-nav';
 
 export default function Home() {
   const [formData, setFormData] = useState({
@@ -47,6 +48,7 @@ export default function Home() {
               <a href="#product" className="text-gray-700 hover:text-blue-600 transition-colors">The Product</a>
               <a href="#reporting" className="text-gray-700 hover:text-blue-600 transition-colors">Reporting</a>
               <a href="#blog" className="text-gray-700 hover:text-blue-600 transition-colors">Blog</a>
+              <TrackOrderNav />
               <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50" asChild>
                 <a href="/order">Register Kit</a>
               </Button>

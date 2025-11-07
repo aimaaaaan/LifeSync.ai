@@ -18,6 +18,7 @@ import withAuth from '@/components/with-auth';
 import { useAuth } from '@/hooks/use-auth';
 import { saveOrderToFirestore } from '@/lib/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { TrackOrderNav } from '@/components/track-order-nav';
 
 interface FormData {
   // Segment 1: Contact & Scheduling
@@ -209,9 +210,12 @@ function OrderPage() {
               <Dna className="h-8 w-8 text-blue-600" />
               <span className="text-2xl font-bold text-gray-800 tracking-tight">LifeCare.ai</span>
             </div>
-            <Badge variant="outline" className="text-blue-700 border-blue-300 bg-blue-50/80 font-semibold py-1 px-3 rounded-full">
-              Order LifeSync Kit
-            </Badge>
+            <div className="flex items-center gap-4">
+              <TrackOrderNav />
+              <Badge variant="outline" className="text-blue-700 border-blue-300 bg-blue-50/80 font-semibold py-1 px-3 rounded-full">
+                Order LifeSync Kit
+              </Badge>
+            </div>
           </div>
         </div>
       </header>

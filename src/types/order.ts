@@ -36,6 +36,28 @@ export interface OrderFormData {
 }
 
 /**
+ * Tracking Stage Types for DNA Testing
+ */
+export type TrackingStage = 
+  | 'pending' 
+  | 'out_for_lab' 
+  | 'kit_reached_lab' 
+  | 'testing_in_progress' 
+  | 'processing_result' 
+  | 'result_ready'
+  | 'cancelled';
+
+/**
+ * Tracking Stage Details
+ */
+export interface TrackingStageDetail {
+  stage: TrackingStage;
+  label: string;
+  description: string;
+  completedAt?: string; // ISO string
+}
+
+/**
  * Order metadata added by the system
  */
 export interface OrderMetadata {
@@ -46,6 +68,8 @@ export interface OrderMetadata {
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  trackingStage: TrackingStage;
+  trackingHistory: TrackingStageDetail[];
   notes?: string;
 }
 
@@ -61,6 +85,8 @@ export interface Order extends OrderFormData {
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  trackingStage?: TrackingStage; // Optional for backward compatibility
+  trackingHistory?: TrackingStageDetail[]; // Optional for backward compatibility
   notes?: string;
 }
 

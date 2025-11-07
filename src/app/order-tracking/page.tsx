@@ -323,11 +323,14 @@ export default function OrderTrackingPage() {
                           {/* Header */}
                           <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                             <div className="flex-1">
-                              <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+                            <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                                 <p className="text-lg font-semibold text-gray-900">
                                   {order.fullName}
                                 </p>
-                                <OrderStatusBadge status={order.status} />
+                                <OrderStatusBadge 
+                                  trackingStage={order.trackingStage}
+                                  status={order.status}
+                                />
                               </div>
                               <p className="text-sm text-gray-600">
                                 Order ID:{' '}

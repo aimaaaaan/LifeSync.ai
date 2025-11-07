@@ -43,7 +43,11 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Order Details
-            <OrderStatusBadge status={order.status} className="ml-auto" />
+            <OrderStatusBadge 
+              trackingStage={order.trackingStage}
+              status={order.status}
+              className="ml-auto" 
+            />
           </DialogTitle>
           <DialogDescription>Order ID: {order.orderId}</DialogDescription>
         </DialogHeader>

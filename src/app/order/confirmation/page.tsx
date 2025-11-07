@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Home, Phone, Mail, Calendar, MapPin, Dna } from 'lucide-react';
 import Link from 'next/link';
+import { TrackOrderNav } from '@/components/track-order-nav';
 
 export default function OrderConfirmation() {
   return (
@@ -17,9 +18,12 @@ export default function OrderConfirmation() {
               <Dna className="h-8 w-8 text-blue-600" suppressHydrationWarning />
               <span className="text-xl font-bold text-gray-900">LifeCare.ai</span>
             </div>
-            <Badge className="bg-green-100 text-green-800 border-green-200">
-              Order Confirmed
-            </Badge>
+            <div className="flex items-center gap-4">
+              <TrackOrderNav />
+              <Badge className="bg-green-100 text-green-800 border-green-200">
+                Order Confirmed
+              </Badge>
+            </div>
           </div>
         </div>
       </header>

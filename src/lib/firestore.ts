@@ -46,16 +46,17 @@ import {
   collectionGroup,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { Order, OrderFormData, OrderSubmissionResponse } from '@/types/order';
+import { Order, OrderFormData, OrderSubmissionResponse, TrackingStage, TrackingStageDetail } from '@/types/order';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyAuBu4XiyFzlvdWsFTfaB-Jbt-AIHqP0Os",
+  authDomain: "lifesync-4d5da.firebaseapp.com",
+  projectId: "lifesync-4d5da",
+  storageBucket: "lifesync-4d5da.firebasestorage.app",
+  messagingSenderId: "855268479053",
+  appId: "1:855268479053:web:03bb38d3cf69ca387d0c04",
+  measurementId: "G-ZK07PCTZ2Z"
 };
 
 let app: FirebaseApp | null = null;
@@ -125,6 +126,60 @@ export const createUserProfile = async (
 };
 
 /**
+ * Initialize tracking history for a new order
+ * @returns Initial tracking history
+ */
+export const initializeTrackingHistory = (): TrackingStageDetail[] => {
+  const now = new Date().toISOString();
+  return [
+    {
+      stage: 'pending',
+      label: 'Order Placed',
+      description: 'Your DNA test kit order has been received',
+      completedAt: now,
+    },
+  ];
+};
+
+/**
+ * Get tracking stage configuration
+ */
+export const getTrackingStageConfig = (stage: TrackingStage) => {
+  const stageConfig: Record<TrackingStage, { label: string; description: string }> = {
+    pending: {
+      label: 'Order Placed',
+      description: 'Your DNA test kit order has been received',
+    },
+    out_for_lab: {
+      label: 'Out for Lab',
+      description: 'Your kit is on the way to our laboratory',
+    },
+    kit_reached_lab: {
+      label: 'Kit Reached Lab',
+      description: 'Your kit has arrived at our laboratory',
+    },
+    testing_in_progress: {
+      label: 'DNA Data Being Tested',
+      description: 'Your DNA sample is being analyzed in our lab',
+    },
+    processing_result: {
+      label: 'Processing Your Result',
+      description: 'Your test results are being processed and analyzed',
+    },
+    result_ready: {
+      label: 'Result is Out',
+      description: 'Your DNA test results are ready to view',
+    },
+    cancelled: {
+      label: 'Order Cancelled',
+      description: 'Your order has been cancelled',
+    },
+  };
+
+  return stageConfig[stage] || { label: 'Unknown', description: 'Unknown stage' };
+};
+
+/**
  * Save order to user's orders subcollection
  * @param userId - User ID from Firebase Auth
  * @param userEmail - User email from Firebase Auth
@@ -145,7 +200,7 @@ export const saveOrderToFirestore = async (
     // First, ensure user profile exists
     await createUserProfile(userId, userEmail, userName);
 
-    // Create order document with metadata
+    // Create order document with metadata and tracking
     const orderDocument = {
       ...orderData,
       // Metadata
@@ -155,6 +210,8 @@ export const saveOrderToFirestore = async (
       createdAt: now,
       updatedAt: now,
       status: 'pending' as const,
+      trackingStage: 'pending' as TrackingStage,
+      trackingHistory: initializeTrackingHistory(),
       notes: '',
     };
 
@@ -222,23 +279,47 @@ export const getUserOrders = async (
     const db = getFirestoreDb();
     const userOrdersRef = collection(db, 'users', userId, 'orders');
 
-    const q = query(
-      userOrdersRef,
-      orderBy('createdAt', 'desc'),
-      limit(orderLimit)
-    );
+    // Try with orderBy first (requires index)
+    try {
+      const q = query(
+        userOrdersRef,
+        orderBy('createdAt', 'desc'),
+        limit(orderLimit)
+      );
 
-    const querySnapshot = await getDocs(q);
-    const orders: Order[] = [];
+      const querySnapshot = await getDocs(q);
+      const orders: Order[] = [];
 
-    querySnapshot.forEach((doc) => {
-      orders.push({
-        orderId: doc.id,
-        ...doc.data(),
-      } as Order);
-    });
+      querySnapshot.forEach((doc) => {
+        orders.push({
+          orderId: doc.id,
+          ...doc.data(),
+        } as Order);
+      });
 
-    return orders;
+      return orders;
+    } catch (indexError: any) {
+      // If index error, fall back to simple query without ordering
+      console.warn('Index not available, fetching without order:', indexError);
+      
+      const q = query(userOrdersRef, limit(orderLimit));
+      const querySnapshot = await getDocs(q);
+      const orders: Order[] = [];
+
+      querySnapshot.forEach((doc) => {
+        orders.push({
+          orderId: doc.id,
+          ...doc.data(),
+        } as Order);
+      });
+
+      // Sort by createdAt in memory
+      return orders.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+    }
   } catch (error) {
     console.error('Error fetching user orders:', error);
     return [];
@@ -316,6 +397,71 @@ export const updateOrderStatus = async (
     return true;
   } catch (error) {
     console.error('Error updating order status:', error);
+    return false;
+  }
+};
+
+/**
+ * Update order tracking stage
+ * @param userId - User ID
+ * @param orderId - Order document ID
+ * @param stage - New tracking stage
+ * @param notes - Optional notes
+ * @returns Success flag
+ */
+export const updateOrderTrackingStage = async (
+  userId: string,
+  orderId: string,
+  stage: TrackingStage,
+  notes?: string
+): Promise<boolean> => {
+  try {
+    const db = getFirestoreDb();
+    const orderRef = doc(db, 'users', userId, 'orders', orderId);
+    const orderSnap = await getDoc(orderRef);
+
+    if (!orderSnap.exists()) {
+      console.error('Order not found');
+      return false;
+    }
+
+    const orderData = orderSnap.data() as Order;
+    const now = new Date().toISOString();
+    const stageConfig = getTrackingStageConfig(stage);
+
+    // Add new stage to history
+    const newHistoryEntry: TrackingStageDetail = {
+      stage,
+      label: stageConfig.label,
+      description: stageConfig.description,
+      completedAt: now,
+    };
+
+    const updatedHistory = [...(orderData.trackingHistory || []), newHistoryEntry];
+
+    // Determine overall order status based on tracking stage
+    let overallStatus = orderData.status;
+    if (stage === 'result_ready') {
+      overallStatus = 'completed';
+    } else if (stage !== 'cancelled' && overallStatus === 'pending') {
+      overallStatus = 'confirmed';
+    }
+
+    const updateData: any = {
+      trackingStage: stage,
+      trackingHistory: updatedHistory,
+      status: overallStatus,
+      updatedAt: now,
+    };
+
+    if (notes) {
+      updateData.notes = notes;
+    }
+
+    await updateDoc(orderRef, updateData);
+    return true;
+  } catch (error) {
+    console.error('Error updating order tracking stage:', error);
     return false;
   }
 };
