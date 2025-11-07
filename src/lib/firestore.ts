@@ -44,6 +44,7 @@ import {
   writeBatch,
   setDoc,
   collectionGroup,
+  arrayUnion,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { Order, OrderFormData, OrderSubmissionResponse, TrackingStage, TrackingStageDetail } from '@/types/order';
@@ -645,3 +646,613 @@ export const getUserOrdersCount = async (userId: string): Promise<number> => {
     return 0;
   }
 };
+
+/**
+ * ADMIN FUNCTIONS - Use with caution and proper authorization
+ */
+
+/**
+ * Get all orders across all users (admin function)
+ * @param orderLimit - Number of orders to fetch
+ * @returns Array of all orders with user info
+ */
+export const getAllOrders = async (orderLimit: number = 100): Promise<any[]> => {
+  try {
+    const db = getFirestoreDb();
+    const ordersRef = collectionGroup(db, 'orders');
+
+    // Fetch without orderBy to avoid index requirement
+    const q = query(
+      ordersRef,
+      limit(orderLimit)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const orders: any[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const pathParts = doc.ref.path.split('/');
+      const userId = pathParts[1];
+
+      orders.push({
+        orderId: doc.id,
+        userId: userId,
+        createdAt: doc.data().createdAt || new Date().toISOString(),
+        ...doc.data(),
+      });
+    });
+
+    // Sort in memory (descending by createdAt)
+    orders.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    return orders;
+  } catch (error) {
+    console.error('Error fetching all orders:', error);
+    return [];
+  }
+};
+
+/**
+ * Get all orders for admin dashboard with pagination
+ * @param pageSize - Number of orders per page
+ * @param offset - Number of orders to skip
+ * @returns Array of orders
+ */
+export const getAdminOrders = async (pageSize: number = 50, offset: number = 0): Promise<any[]> => {
+  try {
+    const db = getFirestoreDb();
+    const ordersRef = collectionGroup(db, 'orders');
+
+    // Fetch without orderBy to avoid index requirement
+    const q = query(
+      ordersRef,
+      // Fetch more to account for sorting after pagination
+      limit(pageSize + offset + 100)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const orders: any[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const pathParts = doc.ref.path.split('/');
+      const userId = pathParts[1];
+
+      orders.push({
+        orderId: doc.id,
+        userId: userId,
+        createdAt: doc.data().createdAt || new Date().toISOString(),
+        ...doc.data(),
+      });
+    });
+
+    // Sort in memory (descending by createdAt)
+    orders.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    return orders.slice(offset, offset + pageSize);
+  } catch (error) {
+    console.error('Error fetching admin orders:', error);
+    return [];
+  }
+};
+
+/**
+ * Update order tracking stage as admin
+ * @param userId - User ID
+ * @param orderId - Order ID
+ * @param newStage - New tracking stage
+ * @param adminEmail - Admin's email for logging
+ */
+export const adminUpdateOrderStage = async (
+  userId: string,
+  orderId: string,
+  newStage: TrackingStage,
+  adminEmail: string
+): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const orderRef = doc(db, 'users', userId, 'orders', orderId);
+
+    const stageDetail: TrackingStageDetail = {
+      stage: newStage,
+      label: getTrackingStageLabel(newStage),
+      description: getTrackingStageDescription(newStage),
+      completedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(orderRef, {
+      trackingStage: newStage,
+      trackingHistory: arrayUnion(stageDetail),
+      status: mapStageToStatus(newStage),
+      updatedAt: new Date().toISOString(),
+      lastUpdatedBy: adminEmail,
+    });
+
+    // Log admin action
+    await logAdminAction(userId, orderId, 'status_update', `Updated to: ${newStage}`, adminEmail);
+  } catch (error) {
+    console.error('Error updating order stage as admin:', error);
+    throw error;
+  }
+};
+
+/**
+ * Publish results for an order (move to result_ready stage)
+ * @param userId - User ID
+ * @param orderId - Order ID
+ * @param resultData - Result data to store
+ * @param adminEmail - Admin's email
+ */
+export const adminPublishResults = async (
+  userId: string,
+  orderId: string,
+  resultData: any,
+  adminEmail: string
+): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const orderRef = doc(db, 'users', userId, 'orders', orderId);
+
+    const stageDetail: TrackingStageDetail = {
+      stage: 'result_ready',
+      label: 'Result Ready',
+      description: 'Your DNA test results are ready for review',
+      completedAt: new Date().toISOString(),
+    };
+
+    await updateDoc(orderRef, {
+      trackingStage: 'result_ready',
+      trackingHistory: arrayUnion(stageDetail),
+      status: 'completed',
+      resultData: resultData || {},
+      resultPublishedAt: new Date().toISOString(),
+      resultPublishedBy: adminEmail,
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Log admin action
+    await logAdminAction(userId, orderId, 'result_publish', 'Published results', adminEmail);
+  } catch (error) {
+    console.error('Error publishing results:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get dashboard statistics
+ */
+export const getAdminStats = async (): Promise<{
+  totalUsers: number;
+  totalOrders: number;
+  completedOrders: number;
+  pendingOrders: number;
+}> => {
+  try {
+    const db = getFirestoreDb();
+
+    // Get total users
+    const usersRef = collection(db, 'users');
+    const usersSnapshot = await getDocs(usersRef);
+    const totalUsers = usersSnapshot.size;
+
+    // Get total orders
+    const ordersRef = collectionGroup(db, 'orders');
+    const ordersSnapshot = await getDocs(ordersRef);
+    const totalOrders = ordersSnapshot.size;
+
+    let completedOrders = 0;
+    let pendingOrders = 0;
+
+    ordersSnapshot.forEach((doc) => {
+      const status = doc.data().status;
+      if (status === 'completed' || status === 'result_ready') {
+        completedOrders++;
+      } else if (status === 'pending' || status === 'confirmed') {
+        pendingOrders++;
+      }
+    });
+
+    return {
+      totalUsers,
+      totalOrders,
+      completedOrders,
+      pendingOrders,
+    };
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    return {
+      totalUsers: 0,
+      totalOrders: 0,
+      completedOrders: 0,
+      pendingOrders: 0,
+    };
+  }
+};
+
+/**
+ * Log admin actions for audit trail
+ */
+const logAdminAction = async (
+  userId: string,
+  orderId: string,
+  action: string,
+  description: string,
+  adminEmail: string
+): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const logsRef = collection(db, 'admin_logs');
+
+    await addDoc(logsRef, {
+      userId,
+      orderId,
+      action,
+      description,
+      adminEmail,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error logging admin action:', error);
+  }
+};
+
+/**
+ * Helper: Map tracking stage to order status
+ */
+const mapStageToStatus = (stage: TrackingStage): string => {
+  if (stage === 'cancelled') return 'cancelled';
+  if (stage === 'result_ready') return 'completed';
+  if (stage === 'pending') return 'pending';
+  return 'confirmed';
+};
+
+/**
+ * Helper: Get stage label
+ */
+const getTrackingStageLabel = (stage: TrackingStage): string => {
+  const labels: Record<TrackingStage, string> = {
+    pending: 'Order Placed',
+    out_for_lab: 'Out for Lab',
+    kit_reached_lab: 'Kit Reached Lab',
+    testing_in_progress: 'Testing in Progress',
+    processing_result: 'Processing Result',
+    result_ready: 'Result Ready',
+    cancelled: 'Cancelled',
+  };
+  return labels[stage] || stage;
+};
+
+/**
+ * Helper: Get stage description
+ */
+const getTrackingStageDescription = (stage: TrackingStage): string => {
+  const descriptions: Record<TrackingStage, string> = {
+    pending: 'Your order has been placed',
+    out_for_lab: 'Your kit is on its way to the lab',
+    kit_reached_lab: 'Your kit has arrived at the testing facility',
+    testing_in_progress: 'DNA analysis is in progress',
+    processing_result: 'Your results are being processed',
+    result_ready: 'Your results are ready for review',
+    cancelled: 'Order has been cancelled',
+  };
+  return descriptions[stage] || '';
+};
+
+// Import arrayUnion for array operations at the top of the file (already imported in the main imports)
+
+/**
+ * NOTIFICATION STORAGE FUNCTIONS
+ * Store and retrieve user notifications from Firestore
+ */
+
+/**
+ * Save a notification to Firestore for a specific user
+ * @param userId - User ID
+ * @param notification - Notification object
+ */
+export const saveNotificationToFirestore = async (
+  userId: string,
+  notification: {
+    id: string;
+    orderId: string;
+    type: string;
+    title: string;
+    message: string;
+    timestamp: string; // ISO string
+    read: boolean;
+    resultData?: any;
+  }
+): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const notificationsRef = doc(db, 'users', userId, 'notifications', notification.id);
+
+    await setDoc(notificationsRef, {
+      ...notification,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error saving notification to Firestore:', error);
+    // Don't throw - notifications should not block order operations
+  }
+};
+
+/**
+ * Get all notifications for a user from Firestore
+ * @param userId - User ID
+ * @returns Array of notifications
+ */
+export const getUserNotifications = async (userId: string): Promise<any[]> => {
+  try {
+    const db = getFirestoreDb();
+    const notificationsRef = collection(db, 'users', userId, 'notifications');
+
+    // Query ordered by timestamp, newest first
+    const q = query(notificationsRef, orderBy('timestamp', 'desc'), limit(100));
+
+    const querySnapshot = await getDocs(q);
+    const notifications: any[] = [];
+
+    querySnapshot.forEach((doc) => {
+      notifications.push({
+        ...doc.data(),
+        id: doc.id,
+      });
+    });
+
+    return notifications;
+  } catch (error) {
+    console.error('Error fetching notifications from Firestore:', error);
+    return [];
+  }
+};
+
+/**
+ * Mark a notification as read in Firestore
+ * @param userId - User ID
+ * @param notificationId - Notification ID
+ */
+export const markNotificationAsRead = async (userId: string, notificationId: string): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const notificationRef = doc(db, 'users', userId, 'notifications', notificationId);
+
+    await updateDoc(notificationRef, {
+      read: true,
+      readAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  }
+};
+
+/**
+ * Mark all notifications as read for a user
+ * @param userId - User ID
+ */
+export const markAllNotificationsAsRead = async (userId: string): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const notificationsRef = collection(db, 'users', userId, 'notifications');
+
+    const q = query(notificationsRef, where('read', '==', false));
+    const querySnapshot = await getDocs(q);
+
+    const batch = writeBatch(db);
+
+    querySnapshot.forEach((doc) => {
+      batch.update(doc.ref, {
+        read: true,
+        readAt: new Date().toISOString(),
+      });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+  }
+};
+
+/**
+ * Delete a notification from Firestore
+ * @param userId - User ID
+ * @param notificationId - Notification ID
+ */
+export const deleteNotificationFromFirestore = async (userId: string, notificationId: string): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const notificationRef = doc(db, 'users', userId, 'notifications', notificationId);
+
+    await deleteDoc(notificationRef);
+  } catch (error) {
+    console.error('Error deleting notification from Firestore:', error);
+  }
+};
+
+/**
+ * Clear all notifications for a user
+ * @param userId - User ID
+ */
+export const clearAllNotificationsForUser = async (userId: string): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const notificationsRef = collection(db, 'users', userId, 'notifications');
+
+    const querySnapshot = await getDocs(notificationsRef);
+
+    const batch = writeBatch(db);
+
+    querySnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error('Error clearing notifications from Firestore:', error);
+  }
+};
+
+/**
+ * REPORT STORAGE FUNCTIONS
+ * Store and retrieve health/DNA analysis reports from Firestore
+ */
+
+/**
+ * Save a generated report to Firestore
+ * @param userId - User ID
+ * @param report - Report object
+ */
+export const saveReportToFirestore = async (userId: string, report: any): Promise<string> => {
+  try {
+    const db = getFirestoreDb();
+    const reportId = report.reportId || `report-${Date.now()}`;
+    const reportsRef = doc(db, 'users', userId, 'reports', reportId);
+
+    const reportDoc = {
+      ...report,
+      savedAt: new Date().toISOString(),
+    };
+
+    await setDoc(reportsRef, reportDoc);
+    return reportId;
+  } catch (error) {
+    console.error('Error saving report to Firestore:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a specific report for a user
+ * @param userId - User ID
+ * @param reportId - Report ID
+ */
+export const getReportById = async (userId: string, reportId: string): Promise<any | null> => {
+  try {
+    const db = getFirestoreDb();
+    const reportRef = doc(db, 'users', userId, 'reports', reportId);
+    const reportSnap = await getDoc(reportRef);
+
+    if (reportSnap.exists()) {
+      return {
+        ...reportSnap.data(),
+        id: reportSnap.id,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching report:', error);
+    return null;
+  }
+};
+
+/**
+ * Get all reports for a user
+ * @param userId - User ID
+ */
+export const getUserReports = async (userId: string): Promise<any[]> => {
+  try {
+    const db = getFirestoreDb();
+    const reportsRef = collection(db, 'users', userId, 'reports');
+
+    const q = query(reportsRef, orderBy('generatedAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const reports: any[] = [];
+
+    querySnapshot.forEach((doc) => {
+      reports.push({
+        ...doc.data(),
+        id: doc.id,
+      });
+    });
+
+    return reports;
+  } catch (error) {
+    console.error('Error fetching user reports:', error);
+    return [];
+  }
+};
+
+/**
+ * Get report by order ID (finds the report associated with an order)
+ * @param userId - User ID
+ * @param orderId - Order ID
+ */
+export const getReportByOrderId = async (userId: string, orderId: string): Promise<any | null> => {
+  try {
+    const db = getFirestoreDb();
+    const reportsRef = collection(db, 'users', userId, 'reports');
+
+    const q = query(reportsRef, where('orderId', '==', orderId), limit(1));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.size > 0) {
+      const doc = querySnapshot.docs[0];
+      return {
+        ...doc.data(),
+        id: doc.id,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching report by order ID:', error);
+    return null;
+  }
+};
+
+/**
+ * Update report status (e.g., from generating to completed)
+ * @param userId - User ID
+ * @param reportId - Report ID
+ * @param status - New status
+ */
+export const updateReportStatus = async (
+  userId: string,
+  reportId: string,
+  status: 'generating' | 'completed' | 'failed',
+  errorMessage?: string
+): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const reportRef = doc(db, 'users', userId, 'reports', reportId);
+
+    const updateData: any = {
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (errorMessage) {
+      updateData.error = errorMessage;
+    }
+
+    await updateDoc(reportRef, updateData);
+  } catch (error) {
+    console.error('Error updating report status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a report
+ * @param userId - User ID
+ * @param reportId - Report ID
+ */
+export const deleteReport = async (userId: string, reportId: string): Promise<void> => {
+  try {
+    const db = getFirestoreDb();
+    const reportRef = doc(db, 'users', userId, 'reports', reportId);
+    await deleteDoc(reportRef);
+  } catch (error) {
+    console.error('Error deleting report:', error);
+    throw error;
+  }
+};
+

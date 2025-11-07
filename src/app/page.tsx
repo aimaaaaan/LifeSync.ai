@@ -11,6 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { Check, Phone, Mail, MapPin, Star, Users, Shield, Activity, Heart, Dna, Clock, Package, MessageCircle } from 'lucide-react';
 import AuthButton from '@/components/auth-button';
 import { TrackOrderNav } from '@/components/track-order-nav';
+import { NotificationButton } from '@/components/notification-button';
+import { PopupNotification } from '@/components/popup-notification';
+import { useOrderNotifications } from '@/hooks/use-order-notifications';
 
 export default function Home() {
   const [formData, setFormData] = useState({
@@ -19,6 +22,9 @@ export default function Home() {
     email: '',
     reason: ''
   });
+
+  // Listen to order notifications
+  useOrderNotifications();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -35,6 +41,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Popup Notification */}
+      <PopupNotification />
+
       {/* Header Navigation */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
         <div className="container mx-auto px-4">
@@ -43,12 +52,13 @@ export default function Home() {
               <Dna className="h-8 w-8 text-blue-600" suppressHydrationWarning />
               <span className="text-xl font-bold text-gray-900">LifeCare.ai</span>
             </div>
-            <nav className="hidden md:flex items-center space-x-8">
+            <nav className="hidden md:flex items-center space-x-6">
               <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors">About Us</a>
               <a href="#product" className="text-gray-700 hover:text-blue-600 transition-colors">The Product</a>
               <a href="#reporting" className="text-gray-700 hover:text-blue-600 transition-colors">Reporting</a>
               <a href="#blog" className="text-gray-700 hover:text-blue-600 transition-colors">Blog</a>
               <TrackOrderNav />
+              <NotificationButton />
               <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50" asChild>
                 <a href="/order">Register Kit</a>
               </Button>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { NotificationProvider } from "@/contexts/notification-context";
+import { AdminProvider } from "@/contexts/admin-context";
 
 export const metadata: Metadata = {
   title: "LifeCare.ai - Advanced Genetic Testing for Preventive Healthcare",
@@ -38,8 +40,12 @@ export default function RootLayout({
         className="antialiased bg-background text-foreground"
         suppressHydrationWarning
       >
-        {children}
-        <Toaster />
+        <AdminProvider>
+          <NotificationProvider>
+            {children}
+            <Toaster />
+          </NotificationProvider>
+        </AdminProvider>
       </body>
     </html>
   );
